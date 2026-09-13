@@ -7,17 +7,17 @@ dependencies = [
   "Flask>=3.1,<4",
   "flask-sock>=0.7,<1",
   "Flask-SQLAlchemy>=3.1,<4",
-  "cryptography>=45,<47",
+  "cryptography>=45,<51",
   "PyJWT>=2.10,<3",
   "python-dotenv>=1.0,<2",
   "waitress>=3.0,<4",
-  "gunicorn>=23,<24; platform_system != 'Windows'",
+  "gunicorn>=23,<27; platform_system != 'Windows'",
   "requests",
   "tqdm",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9", "ruff>=0.12,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
