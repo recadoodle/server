@@ -11,7 +11,7 @@ dependencies = [
   "PyJWT>=2.10,<3",
   "python-dotenv>=1.0,<2",
   "waitress>=3.0,<4",
-  "gunicorn>=23,<24; platform_system != 'Windows'",
+  "gunicorn>=23,<27; platform_system != 'Windows'",
   "requests",
   "tqdm",
 ]
