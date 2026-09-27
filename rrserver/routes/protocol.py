@@ -61,7 +61,6 @@ from ..models import (
     OwnedStoreItem,
     PlayerEvent,
     PlayerEventResponse,
-    PlayerImage,
     PlayerMessage,
     PlayerReport,
     PlayerSetting,
@@ -2637,52 +2636,6 @@ def register_protocol_routes(app: Flask) -> None:
         row.updated_at = datetime.now(UTC)
         db.session.commit()
         return jsonify(outfit)
-
-    @app.get("/api/images/v2/named")
-    def named_images_v2():
-        return jsonify([])
-
-    @app.get("/api/images/v5/player/<int:player_id>")
-    @app.get("/api/images/v4/player/<int:player_id>")
-    def player_images(player_id: int):
-        rows = db.session.scalars(
-            db.select(PlayerImage)
-            .where(PlayerImage.account_id == player_id)
-            .order_by(PlayerImage.id.desc())
-        ).all()
-        return jsonify([player_image_dto(row) for row in rows])
-
-    def player_image_dto(image: PlayerImage) -> dict:
-        return {
-            "Id": image.id,
-            "PlayerId": image.account_id,
-            "ImageName": image.image_name,
-            "RoomId": image.room_id,
-            "Caption": image.caption,
-            "CreatedAt": _iso(image.created_at),
-        }
-
-    @app.post("/api/images/v4/uploadsaved")
-    @require_account
-    def upload_saved_image(account: Account):
-        body = request.form if request.form else (request.get_json(silent=True) or {})
-        image = PlayerImage(
-            account_id=account.id,
-            image_name=str(body.get("ImageName", body.get("imageName", ""))),
-            room_id=int(body["RoomId"]) if str(body.get("RoomId", "")).isdigit() else None,
-            caption=str(body.get("Caption", "")),
-        )
-        db.session.add(image)
-        db.session.commit()
-        return jsonify(player_image_dto(image))
-
-    @app.get("/api/images/v5/bulk")
-    def bulk_images_v5():
-        ids = _query_ids()
-        for value in request.args.getlist("ids"):
-            ids.extend(int(item) for item in value.split(",") if item.strip().isdigit())
-        images = db.session.scalars(db.select(PlayerImage).where(PlayerImage.id.in_(ids))).all() if ids else []
-        return jsonify([player_image_dto(image) for image in images])
 
     @app.get("/api/messages/v2/get")
     @require_account

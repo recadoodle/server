@@ -35,6 +35,12 @@ class Config:
     CORS_ALLOWED_ORIGINS = _origins("CORS_ALLOWED_ORIGINS")
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(64 * 1024 * 1024)))
     PROFILE_PHOTO_MAX_BYTES = int(os.getenv("PROFILE_PHOTO_MAX_BYTES", str(5 * 1024 * 1024)))
+    IMAGE_MAX_BYTES = int(os.getenv("IMAGE_MAX_BYTES", str(10 * 1024 * 1024)))
+    IMAGE_MAX_PIXELS = int(os.getenv("IMAGE_MAX_PIXELS", str(40_000_000)))
+    IMAGE_MAX_DIMENSION = int(os.getenv("IMAGE_MAX_DIMENSION", "4096"))
+    IMAGE_VARIANT_CACHE_BYTES = int(
+        os.getenv("IMAGE_VARIANT_CACHE_BYTES", str(64 * 1024 * 1024))
+    )
     MAX_FORM_MEMORY_SIZE = int(os.getenv("MAX_FORM_MEMORY_SIZE", str(2 * 1024 * 1024)))
     MAX_FORM_PARTS = int(os.getenv("MAX_FORM_PARTS", "100"))
     MIN_PASSWORD_LENGTH = int(os.getenv("MIN_PASSWORD_LENGTH", "12"))
