@@ -15,7 +15,8 @@ just before you begin the deployment process please keep in mind this server is 
 - Password accounts, developer roles, token authentication and a password-required account picker.
 - Personal dorms, room discovery, room saves, circuit values and room thumbnails.
 - Avatar/equipment catalogs, outfits, friends, chat and WebSocket notifications.
-- Authenticated JPEG, PNG, and WebP profile-photo uploads with stable public account URLs.
+- A built-in image server: authenticated JPEG, PNG, and WebP uploads, on-the-fly resizing
+  and square cropping, saved player photos, and profile photos with stable public URLs.
 - Persistent game-completion token rewards and atomic token-store purchases.
 - Experimental clubs, events, reports and other protocol endpoints; some remain stubs.
 - Database readiness monitoring at `/readyz`, with HTTP 503 when the database is unavailable.
@@ -31,6 +32,44 @@ has not been installed. Use `/readyz` to check database readiness.
 Upload a profile photo as multipart form data to `/account/me/profilephoto`. The response
 includes its public `/account/{accountId}/profilephoto` URL. Photos default to a 5 MB limit,
 configurable with `PROFILE_PHOTO_MAX_BYTES`.
+
+## Image server
+
+Images are served by the `Images` service (`img.` subdomain, or the main host in
+`SINGLE_HOST_MODE`) at `/{imageName}`. Room thumbnails such as `/RecCenter.jpg` are bundled;
+unknown names return a generated placeholder so the client never shows a broken image.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/images/v1/upload` | Upload an image (multipart, any field name). Returns its name, URL, size and dimensions. |
+| `POST` | `/api/images/v4/uploadsaved` | Save a photo to the player's gallery: multipart image plus optional `RoomId` and `Caption`/`Description`, or JSON `{"ImageName": ...}` for an existing image. |
+| `GET` | `/{imageName}` | Download an image. |
+| `GET` | `/api/images/v1/metadata/{imageName}` | Owner, type, dimensions, size and SHA-256 of an uploaded image. |
+| `GET` | `/api/images/v1/{id}` | One saved photo. |
+| `GET` | `/api/images/v4/player/{accountId}` | A player's saved photos, newest first. |
+| `GET` | `/api/images/v1/room/{roomId}` | Photos taken in a room, newest first. |
+| `GET` | `/api/images/v5/bulk?ids=1,2` | Several saved photos by ID. |
+| `DELETE` | `/api/images/v1/{id}` | Delete a saved photo (owner, moderator or developer). The file is removed once nothing references it. |
+
+Every image URL accepts `width`, `height` and `cropSquare=true`, for example
+`/{imageName}?width=256&cropSquare=true`. Images keep their aspect ratio, fit inside both
+`width` and `height` when both are given, and are never enlarged. Resized copies are kept
+in a per-process memory cache bounded by `IMAGE_VARIANT_CACHE_BYTES`.
+
+Uploads are decoded to reject anything that is not a real JPEG, PNG, or WebP image, turned
+upright according to their EXIF orientation, and re-encoded so EXIF data (including GPS
+location and camera details) is removed. Only the colour profile is kept. Animated images keep
+their first frame only. `/upload` with `FileType=3` stores valid images the same way; other
+data is kept as an opaque blob, as before.
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `IMAGE_MAX_BYTES` | 10 MB | Largest accepted image upload. |
+| `IMAGE_MAX_PIXELS` | 40,000,000 | Largest accepted width × height, guarding against decompression bombs. |
+| `IMAGE_MAX_DIMENSION` | 4096 | Largest `width`/`height` a request may ask for. |
+| `IMAGE_VARIANT_CACHE_BYTES` | 64 MB | Memory for resized copies. |
+
+Uploaded images live under `instance/uploads/image/`; include that folder in backups.
 
 These endpoints do not guarantee every feature works in-game. This is not a hardened,
 production-ready public service. Use a small, controlled test deployment first.

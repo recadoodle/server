@@ -1,29 +1,11 @@
-import uuid
-
-from flask import Flask, current_app, jsonify, request, send_file
+from flask import Flask, current_app, jsonify, request
 
 from ...auth import require_account
 from ...extensions import db
 from ...models import Account
+from .image_store import image_response, release_image, save_image
+from .imaging import ImageRejected, process_upload
 from .storage import safe_blob_path
-
-
-def photo_type(content: bytes) -> tuple[str, str] | None:
-    signatures = (
-        (b"\xff\xd8\xff", ".jpg", "image/jpeg"),
-        (b"\x89PNG\r\n\x1a\n", ".png", "image/png"),
-    )
-    detected = next(
-        (
-            (suffix, mimetype)
-            for signature, suffix, mimetype in signatures
-            if content.startswith(signature)
-        ),
-        None,
-    )
-    if detected is None and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
-        return ".webp", "image/webp"
-    return detected
 
 
 def register_profile_photo_routes(app: Flask) -> None:
@@ -37,20 +19,24 @@ def register_profile_photo_routes(app: Flask) -> None:
         content = uploaded.stream.read(maximum + 1)
         if len(content) > maximum:
             return jsonify(error="photo too large", maxBytes=maximum), 413
-        detected = photo_type(content)
-        if detected is None:
+        try:
+            processed = process_upload(content, max_pixels=current_app.config["IMAGE_MAX_PIXELS"])
+        except ImageRejected:
             return jsonify(error="photo must be JPEG, PNG, or WebP"), 400
-        suffix, mimetype = detected
-        blob_name = f"profile/{account.id}/{uuid.uuid4()}{suffix}"
-        destination = safe_blob_path("image", blob_name)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(content)
-        account.profile_image = blob_name
+        previous = account.profile_image
+        image = save_image(processed, account)
+        account.profile_image = image.name
+        db.session.flush()
+        unused = release_image(previous) if previous else None
         db.session.commit()
+        if unused is not None:
+            unused.unlink(missing_ok=True)
         return jsonify(
             accountId=account.id,
-            imageName=blob_name,
-            contentType=mimetype,
+            imageName=image.name,
+            contentType=image.content_type,
+            width=image.width,
+            height=image.height,
             url=f"/account/{account.id}/profilephoto",
         )
 
@@ -62,6 +48,4 @@ def register_profile_photo_routes(app: Flask) -> None:
         candidate = safe_blob_path("image", account.profile_image)
         if candidate is None or not candidate.is_file():
             return "", 404
-        response = send_file(candidate, conditional=True)
-        response.headers["Cache-Control"] = "public, max-age=300"
-        return response
+        return image_response(candidate, cache_control="public, max-age=300")

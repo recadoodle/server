@@ -8,6 +8,7 @@ dependencies = [
   "flask-sock>=0.7,<1",
   "Flask-SQLAlchemy>=3.1,<4",
   "cryptography>=45,<51",
+  "Pillow>=11,<13",
   "PyJWT>=2.10,<3",
   "python-dotenv>=1.0,<2",
   "waitress>=3.0,<4",

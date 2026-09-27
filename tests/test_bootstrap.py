@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 
 import jwt
 import pytest
+from PIL import Image
 
 from rrserver import create_app
 from rrserver.extensions import db
@@ -792,7 +793,9 @@ def test_profile_photo_upload_and_public_download(client):
     tokens = create_player(client)
     headers = bearer(tokens["access_token"])
     account_id = client.get("/account/me", headers=headers).get_json()["accountId"]
-    photo = b"\x89PNG\r\n\x1a\n" + b"recadoodle-photo"
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 30), (200, 10, 10)).save(buffer, "PNG")
+    photo = buffer.getvalue()
     uploaded = client.post(
         "/account/me/profilephoto",
         headers=headers,
@@ -806,7 +809,9 @@ def test_profile_photo_upload_and_public_download(client):
     downloaded = client.get(f"/account/{account_id}/profilephoto")
     assert downloaded.status_code == 200
     assert downloaded.mimetype == "image/png"
-    assert downloaded.data == photo
+    with Image.open(io.BytesIO(downloaded.data)) as decoded:
+        assert decoded.format == "PNG"
+        assert decoded.size == (40, 30)
     assert downloaded.headers["Cache-Control"] == "public, max-age=300"
 
 

@@ -300,6 +300,19 @@ class PlayerImage(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
 
+class StoredImage(db.Model):
+    name = db.Column(db.String(64), primary_key=True)
+    owner_account_id = db.Column(
+        db.Integer, db.ForeignKey("account.id"), nullable=True, index=True
+    )
+    content_type = db.Column(db.String(32), nullable=False)
+    width = db.Column(db.Integer, nullable=False)
+    height = db.Column(db.Integer, nullable=False)
+    size_bytes = db.Column(db.Integer, nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class PlayerEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     creator_account_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)

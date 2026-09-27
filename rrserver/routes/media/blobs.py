@@ -2,10 +2,13 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, current_app, jsonify, request, send_file
 
 from ...auth import require_account
+from ...extensions import db
 from ...models import Account
+from .image_store import save_image
+from .imaging import ImageRejected, process_upload
 from .storage import safe_blob_path
 
 CATEGORIES = {
@@ -21,7 +24,7 @@ CATEGORIES = {
 def register_blob_routes(app: Flask) -> None:
     @app.post("/upload")
     @require_account
-    def upload_blob(_account: Account):
+    def upload_blob(account: Account):
         file_type = request.form.get("FileType", request.form.get("fileType", "0"))
         uploaded = next(iter(request.files.values()), None)
         if uploaded is None:
@@ -36,6 +39,23 @@ def register_blob_routes(app: Flask) -> None:
         category = CATEGORIES.get(str(file_type))
         if category is None:
             return jsonify(error="missing or unknown FileType"), 400
+        if category == "image":
+            # Valid pictures become first-class images served by the image host at
+            # /<filename>; anything Pillow cannot read is kept as an opaque blob.
+            maximum = current_app.config["IMAGE_MAX_BYTES"]
+            content = uploaded.stream.read(maximum + 1)
+            uploaded.stream.seek(0)
+            if len(content) <= maximum:
+                try:
+                    processed = process_upload(
+                        content, max_pixels=current_app.config["IMAGE_MAX_PIXELS"]
+                    )
+                except ImageRejected:
+                    processed = None
+                if processed is not None:
+                    image = save_image(processed, account)
+                    db.session.commit()
+                    return jsonify(filename=image.name)
         suffix = ".inv" if str(file_type) == "5" else ""
         blob_name = f"{datetime.now(UTC).date().isoformat()}/{uuid.uuid4()}{suffix}"
         destination = safe_blob_path(category, blob_name)

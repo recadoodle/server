@@ -47,6 +47,14 @@ class RequestLimiter:
         return True, 0
 
 
+UPLOAD_PATHS = {
+    "/upload",
+    "/account/me/profilephoto",
+    "/api/images/v1/upload",
+    "/api/images/v4/uploadsaved",
+}
+
+
 def register_security(app: Flask) -> None:
     limiter = RequestLimiter()
     app.extensions["request_limiter"] = limiter
@@ -61,7 +69,7 @@ def register_security(app: Flask) -> None:
             rule = ("token", 30, 60)
         elif request.path == "/admin/login" and request.method == "POST":
             rule = ("admin-login", 10, 300)
-        elif request.path in {"/upload", "/account/me/profilephoto"} and request.method == "POST":
+        elif request.path in UPLOAD_PATHS and request.method == "POST":
             rule = ("upload", 20, 60)
         if rule is None:
             return None
