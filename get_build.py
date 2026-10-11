@@ -15,11 +15,20 @@ except ImportError:
     print("pip install requests tqdm")
     sys.exit(1)
 
-URL = "https://archive.recagain.site/download/2023-04-18T06-58-58Z"
-
 BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = BASE_DIR / "Build"
-ARCHIVE_FILE = BASE_DIR / "RecRoom-2023-04-18.zip"
+
+# Rec Room 20230414 (April 2023) on Steam, fetched with DepotDownloader.
+STEAM_APP_ID = "471710"
+STEAM_DEPOT_ID = "471711"
+STEAM_MANIFEST_ID = "6426603215211043630"
+
+DEPOTDOWNLOADER_URL = (
+    "https://github.com/SteamRE/DepotDownloader/releases/download/"
+    "DepotDownloader_3.4.0/DepotDownloader-windows-x64.zip"
+)
+DEPOTDOWNLOADER_DIR = BASE_DIR / "DepotDownloader"
+DEPOTDOWNLOADER_ARCHIVE = BASE_DIR / "DepotDownloader.zip"
 
 BEPINEX_URL = (
     "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.2/"
@@ -49,7 +58,7 @@ def banner():
 """)
 
 
-def download(url=URL, target=ARCHIVE_FILE, label="Rec Room"):
+def download(url, target, label):
     print(f"\nConnecting to download server ({label})")
 
     response = requests.get(
@@ -92,29 +101,31 @@ def download(url=URL, target=ARCHIVE_FILE, label="Rec Room"):
     print(f"\nDownload finished in {elapsed:.1f} seconds.")
 
 
-def extract():
+def download_build():
+    exe = DEPOTDOWNLOADER_DIR / "DepotDownloader.exe"
+    if not exe.exists():
+        download(DEPOTDOWNLOADER_URL, DEPOTDOWNLOADER_ARCHIVE, "DepotDownloader")
+        unzip(DEPOTDOWNLOADER_ARCHIVE, DEPOTDOWNLOADER_DIR)
+
+    print("\nDownloading Rec Room 20230414 from Steam with DepotDownloader.")
+    print("Sign in with the Steam account that owns Rec Room.")
+    print("DepotDownloader will ask for your password and Steam Guard code itself.\n")
+    username = input("Steam username: ").strip()
+    if not username:
+        raise RuntimeError("A Steam username is required to download the build.")
+
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-    print("\nExtracting build...")
-    print(f"Destination: {DOWNLOAD_DIR}\n")
-
-    with zipfile.ZipFile(ARCHIVE_FILE, "r") as archive:
-        members = archive.infolist()
-
-        with tqdm(
-            total=len(members),
-            desc="Extracting",
-            ncols=90,
-            unit="files"
-        ) as progress:
-
-            for member in members:
-                archive.extract(member, DOWNLOAD_DIR)
-                progress.update(1)
-
-    ARCHIVE_FILE.unlink(missing_ok=True)
-
-    print("\nExtraction complete.")
+    result = subprocess.run([
+        str(exe),
+        "-app", STEAM_APP_ID,
+        "-depot", STEAM_DEPOT_ID,
+        "-manifest", STEAM_MANIFEST_ID,
+        "-username", username,
+        "-remember-password",
+        "-dir", str(DOWNLOAD_DIR),
+    ])
+    if result.returncode != 0:
+        raise RuntimeError("DepotDownloader failed (see output above).")
 
 
 def unzip(archive_file, destination):
@@ -287,8 +298,7 @@ def main():
 
     try:
         if not any(DOWNLOAD_DIR.rglob("GameAssembly.dll")):
-            download()
-            extract()
+            download_build()
         else:
             print("\nBuild already downloaded, skipping download.")
         patch(nameserver, photon_ids)
