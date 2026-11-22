@@ -1,5 +1,5 @@
 # Recadoodle
-## UNSTABLE BRANCH IS FOR UPDATES THAT WE ARE TESTING. IT MIGHT NOT ALWAYS BE "UNSTABLE"
+## the main branch, 2026 may not actually be 2026 yet, this text will get removed when switched
 An experimental, unofficial Python/Flask replacement backend for preserved April 2023
 Rec Room clients (`20230414`). Not affiliated with or endorsed by Rec Room Inc.
 Compatibility with other builds is not guaranteed.
